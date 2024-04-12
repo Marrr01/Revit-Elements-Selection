@@ -4,22 +4,22 @@ using Revit.Async;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Windows;
 
 namespace Revit_Elements_Selection
 {
     internal class MainWindowVM : ViewModelBase
     {
+        #region Свойства
         public IList<Element> SelectedElements
         {
             get { return Data.SelectedElements; }
-            set { Data.SelectedElements = value; OnPropertyChanged("SelectedElements"); }
+            set { Data.SelectedElements = value; OnPropertyChanged(); }
         }
 
         public ModelLine SelectedLine
         {
             get { return Data.SelectedLine; }
-            set { Data.SelectedLine = value; OnPropertyChanged("SelectedLine"); OnPropertyChanged("SelectedLineStr"); }
+            set { Data.SelectedLine = value; OnPropertyChanged("SelectedLineStr"); }
         }
 
         public string SelectedLineStr
@@ -30,16 +30,12 @@ namespace Revit_Elements_Selection
         public XYZ SelectedPoint
         {
             get { return Data.SelectedPoint; }
-            set { Data.SelectedPoint = value; OnPropertyChanged("SelectedPoint"); OnPropertyChanged("SelectedPointStr"); }
+            set { Data.SelectedPoint = value; OnPropertyChanged("SelectedPointStr"); }
         }
 
         public string SelectedPointStr
         {
-            get 
-            { 
-                if (Data.SelectedPoint != null) { return $"X = {Math.Round(Data.SelectedPoint.X, 2)}; Y = {Math.Round(Data.SelectedPoint.Y, 2)}; Z = {Math.Round(Data.SelectedPoint.Z, 2)}"; }
-                else { return string.Empty ; }
-            }
+            get { return Data.SelectedPoint != null ? $"X = {Math.Round(Data.SelectedPoint.X, 2)}; Y = {Math.Round(Data.SelectedPoint.Y, 2)}; Z = {Math.Round(Data.SelectedPoint.Z, 2)}" : string.Empty; }
         }
 
         private string status;
@@ -48,6 +44,7 @@ namespace Revit_Elements_Selection
             get { return status; }
             set { status = value; OnPropertyChanged("Status"); } 
         }
+        #endregion
 
         private const string IDLE_STATUS = "Ожидание...";
 
@@ -70,18 +67,13 @@ namespace Revit_Elements_Selection
                     var uiDoc =
                         uiapp.ActiveUIDocument;
 
-                    if (uiDoc != null)
+                    try
                     {
-                        try
-                        {
-                            uiDoc.Selection.GetElementIds().Clear();
-                            uiDoc.Selection.SetElementIds(new ElementId[1] { value.Id });
-                        }
-                        catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
+                        uiDoc.Selection.GetElementIds().Clear();
+                        uiDoc.Selection.SetElementIds(new ElementId[1] { value.Id });
                     }
+                    catch (Exception ex) { }
                 });
-
-                OnPropertyChanged("SelectedItems");
             }
         }
         #endregion
@@ -102,20 +94,16 @@ namespace Revit_Elements_Selection
                                 var uiDoc =
                                     uiapp.ActiveUIDocument;
 
-                                if (uiDoc != null)
+                                Status = "Выделите элементы в проекте";
+
+                                try
                                 {
-                                    Status = "Выделите элементы в проекте";
-
-                                    try
-                                    {
-                                        SelectedElements =
+                                    SelectedElements =
                                         uiDoc.Selection.PickElementsByRectangle("Выделите элементы").OrderBy(e => e.Name).ToList();
-                                    }
-                                    catch (Autodesk.Revit.Exceptions.OperationCanceledException) { }
-                                    catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
-
-                                    Status = IDLE_STATUS;
                                 }
+                                catch (Exception ex) { }
+
+                                Status = IDLE_STATUS;
                             });
                         }
                     }));
@@ -123,7 +111,7 @@ namespace Revit_Elements_Selection
         }
         #endregion
 
-        #region Добавить
+        #region Добавить элементы
         private RelayCommand<object> addCommand;
         public RelayCommand<object> AddCommand
         {
@@ -139,23 +127,19 @@ namespace Revit_Elements_Selection
                             var uiDoc =
                                 uiapp.ActiveUIDocument;
 
-                            if (uiDoc != null)
+                            Status = "Выделите элементы в проекте";
+
+                            var filter =
+                                new ElementsSelectionFilter(SelectedElements);
+
+                            try
                             {
-                                Status = "Выделите элементы в проекте";
-
-                                var filter =
-                                    new ElementsSelectionFilter(SelectedElements);
-
-                                try
-                                {
-                                    SelectedElements =
-                                        uiDoc.Selection.PickElementsByRectangle(filter, "Выделите элементы").Concat(SelectedElements).OrderBy(e => e.Name).ToList();
-                                }
-                                catch (Autodesk.Revit.Exceptions.OperationCanceledException) { }
-                                catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
-
-                                Status = IDLE_STATUS;
+                                SelectedElements =
+                                    uiDoc.Selection.PickElementsByRectangle(filter, "Выделите элементы").Concat(SelectedElements).OrderBy(e => e.Name).ToList();
                             }
+                            catch (Exception ex) { }
+
+                            Status = IDLE_STATUS;
                         });
                     }
                 }));
@@ -179,26 +163,22 @@ namespace Revit_Elements_Selection
                             var uiDoc =
                                 uiapp.ActiveUIDocument;
 
-                            if (uiDoc != null)
+                            Status = "Укажите линию в проекте";
+
+                            var filter =
+                                new LineSelectionFilter();
+
+                            try
                             {
-                                Status = "Укажите линию в проекте";
+                                var lineReference =
+                                    uiDoc.Selection.PickObject(ObjectType.Element, filter, "Укажите линию");
 
-                                var filter =
-                                    new LineSelectionFilter();
-
-                                try
-                                {
-                                    var lineReference =
-                                        uiDoc.Selection.PickObject(ObjectType.Element, filter, "Укажите линию");
-
-                                    SelectedLine = 
-                                        uiDoc.Document.GetElement(lineReference) as ModelLine;
-                                }
-                                catch (Autodesk.Revit.Exceptions.OperationCanceledException) { }
-                                catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
-
-                                Status = IDLE_STATUS;
+                                SelectedLine =
+                                    uiDoc.Document.GetElement(lineReference) as ModelLine;
                             }
+                            catch (Exception ex) { }
+
+                            Status = IDLE_STATUS;
                         });
                     }
                 }));
@@ -222,20 +202,16 @@ namespace Revit_Elements_Selection
                             var uiDoc =
                                 uiapp.ActiveUIDocument;
 
-                            if (uiDoc != null)
+                            Status = "Укажите точку в проекте";
+
+                            try
                             {
-                                Status = "Укажите точку в проекте";
-
-                                try
-                                {
-                                    SelectedPoint =
-                                        uiDoc.Selection.PickPoint("Укажите точку");
-                                }
-                                catch (Autodesk.Revit.Exceptions.OperationCanceledException) { }
-                                catch (Exception ex) { MessageBox.Show(ex.Message, "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error); }
-
-                                Status = IDLE_STATUS;
+                                SelectedPoint =
+                                    uiDoc.Selection.PickPoint("Укажите точку");
                             }
+                            catch (Exception ex) { }
+
+                            Status = IDLE_STATUS;
                         });
                     }
                 }));

@@ -9,13 +9,14 @@
              MinHeight="600"
              MinWidth="300"
              Height="600"
-             Width="300">
+             Width="300"
+             Title="Revit Elements Selection">
 
     <Window.DataContext>
         <local:MainWindowVM/>
     </Window.DataContext>
     
-    <Grid Margin="10">
+    <Grid Margin="10,0,10,10">
 
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
